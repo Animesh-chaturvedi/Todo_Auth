@@ -1,97 +1,92 @@
-var passportLocalMongoose = require('passport-local-mongoose'),
-    LocalStrategy = require('passport-local'),
-    expressSession = require('express-session'),
-    bodyParser = require('body-parser'),
-    mongoose = require('mongoose'),
-    passport = require('passport'),
-    express = require('express'),
-    User = require('./models/user'),
-    app = express(),
-    PORT = 3000;
+var express = require("express"),
+    mongoose = require("mongoose"),
+    passport = require("passport"),
+    bodyParser = require("body-parser"),
+    User = require("./models/user"),
+    LocalStrategy = require("passport-local"),
+    passportLocalMongoose = require("passport-local-mongoose"),
+    port = 3000;
 
-
-//mongoose setup
-mongoose.connect("mongodb://localhost/todo_app", {
+mongoose.connect("mongodb://localhost/auth_demo_app", {
     useNewUrlParser: true
 });
-
-
+var app = express();
+app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({
     extended: true
 }));
-app.set("view engine", "ejs");
-app.use(passport.initialize());
-app.use(passport.session());
-app.use(expressSession({
-    secret: "kese ho",
+app.use(require("express-session")({
+    secret: "Rusty is the best and cutest dog in the world",
     resave: false,
     saveUninitialized: false
 }));
 
+app.use(passport.initialize());
+app.use(passport.session());
+
 passport.use(new LocalStrategy(User.authenticate()));
 passport.serializeUser(User.serializeUser());
-passport.deserializeUser(User.serializeUser());
+passport.deserializeUser(User.deserializeUser());
 
-//landing route
+//============
+// ROUTES
+//============
+
 app.get("/", function (req, res) {
     res.render("todo");
 });
 
-app.get("/todoDash", isLoggedIn, function (req, res) {
+app.get("/tododash", isLoggedIn, function (req, res) {
     res.render("todoDash");
 });
 
-///////////////////////////////
-//signup get routes 
-app.get("/signup", function (req, res) {
-    res.render("register");
-});
+// Auth Routes
 
-//Route to get user info and setting up credentials
+//show sign up form
+app.get("/signup", function (req, res) {
+    res.render("signup");
+});
+//handling user sign up
 app.post("/signup", function (req, res) {
     User.register(new User({
-        username: req.body.username,
+        username: req.body.username
     }), req.body.password, function (err, user) {
         if (err) {
             console.log(err);
-            return res.render("register");
-        } else {
-            passport.authenticate("local")(req, res, function () {
-                res.redirect("/todoDash");
-                console.log("signed in")
-            })
+            return res.render('signup');
         }
-    })
+        passport.authenticate("local")(req, res, function () {
+            res.redirect("/todoDash");
+        });
+    });
 });
 
-////////////////////////////////
-//login routes
-///////////////////////////////
+// LOGIN ROUTES
+//render login form
 app.get("/login", function (req, res) {
     res.render("login");
 });
-
-//checking user credentials
+//login logic
+//middleware
 app.post("/login", passport.authenticate("local", {
     successRedirect: "/todoDash",
-    failureRedirect: "/login",
-    failureFlash: true
+    failureRedirect: "/login"
 }), function (req, res) {});
-//////logout route
+
 app.get("/logout", function (req, res) {
     req.logout();
     res.redirect("/");
 });
 
 
-///////////////////  functions    ///////////
 function isLoggedIn(req, res, next) {
     if (req.isAuthenticated()) {
         return next();
     }
+    res.redirect("/login");
 }
 
 
-app.listen(PORT, process.env.IP, function () {
-    console.log("TodoAuth has started");
-});
+app.listen(port, process.env.IP, function () {
+    console.log("server started.......");
+})
